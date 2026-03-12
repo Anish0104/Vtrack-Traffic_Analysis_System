@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+gradio>=4.0.0
+opencv-python-headless
+ultralytics
+lapx
+numpy
+pandas
+supabase
+python-dotenv
+wandb
+python-multipart
+psutil

@@ -1,0 +1,5 @@
+# Default YOLO detection yaml config
+model_name: yolov8s
+device: cpu
+imgsz: 320
+confidence_threshold: 0.3
