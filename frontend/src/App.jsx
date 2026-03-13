@@ -9,7 +9,6 @@ import LandingPage from './components/LandingPage';
 import TrafficScene from './components/3D/TrafficScene';
 import CalibrationStep from './components/CalibrationStep';
 import { fetchGlobalStats, uploadVideoFile, startProcessingAndPoll } from './services/api';
-import InferenceFeed from './components/InferenceFeed';
 
 function AppRouter() {
   const [videoFile, setVideoFile] = useState(null);
@@ -120,9 +119,10 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
     
     const loadData = async () => {
       try {
-        const statsData = await fetchGlobalStats();
-        if (mounted && statsData) {
-          setStats(statsData);
+          const statsData = await fetchGlobalStats();
+        
+        if (mounted) {
+          if (statsData) setStats(statsData);
         }
       } catch (e) {
         console.error("Dashboard refresh error:", e);
@@ -185,7 +185,8 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
       </div>
 
       {/* Lower Row: Upload & Activity Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Upload Zone Container */}
+      <div className="max-w-4xl mx-auto w-full">
         {/* Upload Zone */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -205,16 +206,6 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
               <div className="py-12"><ProcessingStatus /></div>
             )}
           </div>
-        </motion.div>
-
-        {/* AI Intelligence Panel */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="flex-1"
-        >
-          <InferenceFeed isProcessing={isProcessing} />
         </motion.div>
       </div>
     </motion.div>

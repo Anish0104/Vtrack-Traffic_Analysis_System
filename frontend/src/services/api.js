@@ -110,12 +110,4 @@ export const fetchGlobalStats = async () => {
     }
 };
 
-export const fetchRecentActivity = async () => {
-    try {
-        const res = await axios.get(`${API_BASE}/recent-activity`);
-        return res.data;
-    } catch (e) {
-        console.error("Failed to fetch recent activity:", e);
-        return [];
-    }
-};
+
