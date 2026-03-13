@@ -8,7 +8,8 @@ import ResultsView from './components/ResultsView';
 import LandingPage from './components/LandingPage';
 import TrafficScene from './components/3D/TrafficScene';
 import CalibrationStep from './components/CalibrationStep';
-import { fetchGlobalStats, fetchRecentActivity, uploadVideoFile, startProcessingAndPoll } from './services/api';
+import { fetchGlobalStats, uploadVideoFile, startProcessingAndPoll } from './services/api';
+import InferenceFeed from './components/InferenceFeed';
 
 function AppRouter() {
   const [videoFile, setVideoFile] = useState(null);
@@ -113,21 +114,15 @@ function AppRouter() {
 
 function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload, handleCalibrationComplete, videoFile }) {
   const [stats, setStats] = useState({ total_processed: 0, total_vehicles: 0, system_load: 0 });
-  const [activities, setActivities] = useState([]);
 
   useEffect(() => {
     let mounted = true;
     
     const loadData = async () => {
       try {
-        const [statsData, activityData] = await Promise.all([
-          fetchGlobalStats(),
-          fetchRecentActivity()
-        ]);
-        
-        if (mounted) {
-          if (statsData) setStats(statsData);
-          if (activityData) setActivities(activityData);
+        const statsData = await fetchGlobalStats();
+        if (mounted && statsData) {
+          setStats(statsData);
         }
       } catch (e) {
         console.error("Dashboard refresh error:", e);
@@ -212,64 +207,14 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
           </div>
         </motion.div>
 
-        {/* Recent Activity Table */}
+        {/* AI Intelligence Panel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-dark-900/60 backdrop-blur-md border border-white/10 rounded-sm overflow-hidden shadow-sm flex flex-col max-h-[400px]"
+          className="flex-1"
         >
-          <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-dark-800/60">
-            <h4 className="text-white font-medium text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-teal-400" />
-              Recent Activity
-            </h4>
-          </div>
-          <div className="overflow-y-auto flex-1 custom-scrollbar">
-            {activities.length === 0 ? (
-              <div className="text-center py-12 text-slate-500 font-medium">No recent activity detected.</div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="bg-dark-800/40 text-slate-400 border-b border-white/5 sticky top-0 backdrop-blur-md">
-                  <tr>
-                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-slate-400">Video</th>
-                    <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-slate-400">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-slate-300">
-                  {activities.map((act) => (
-                    <motion.tr key={act.id} whileHover={{ backgroundColor: "rgba(255,255,255,0.02)" }} className="group">
-                      <td className="px-6 py-4 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-sm bg-dark-800 border border-white/5 flex items-center justify-center group-hover:border-teal-500/50 group-hover:text-teal-400 transition-colors">
-                          <Video className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-white group-hover:text-teal-400 transition-colors truncate max-w-[200px]">
-                            {act.videos?.filename || `Traffic Analysis - ${new Date(act.created_at).toLocaleDateString()}`}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {new Date(act.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {act.status === 'completed' ? (
-                           <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">✓ Complete</span>
-                        ) : act.status === 'processing' ? (
-                           <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-medium border border-amber-500/20 flex items-center gap-2 w-max">
-                             <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></div>
-                             Processing {act.progress}%
-                           </span>
-                        ) : (
-                           <span className="px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-xs font-medium border border-rose-500/20">Failed</span>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <InferenceFeed isProcessing={isProcessing} />
         </motion.div>
       </div>
     </motion.div>

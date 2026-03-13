@@ -17,7 +17,7 @@
 - **Multi-Class Detection**: Real-time identification of cars, trucks, buses, and motorcycles using **YOLOv8s**.
 - **Accurate Tracking**: ByteTrack implementation for robust vehicle re-identification across frames.
 - **Speed Estimation**: Dynamic velocity calculation based on camera calibration.
-- **Heatmap Visualization**: Intensity mapping to identify traffic bottlenecks and flow patterns.
+- **AI System Intelligence Feed**: A live sci-fi inspired stream of model detections and system performance metrics.
 
 ### 📈 Interactive Dashboards
 - **3D Traffic Scene**: An immersive React Three Fiber environment that visualizes data with a professional, glassmorphic UI.

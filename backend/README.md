@@ -1,14 +1,8 @@
 ---
-title: Vtrack Video Analytics
+title: Vtrack API
 emoji: 🚗
-colorFrom: teal
+colorFrom: green
 colorTo: blue
-sdk: gradio
-sdk_version: 4.19.2
-app_file: app.py
-pinned: false
-license: mit
+sdk: docker
+app_port: 7860
 ---
-
-# Vtrack Backend
-Real-time traffic analytics API and Gradio Interface powered by YOLOv8.
