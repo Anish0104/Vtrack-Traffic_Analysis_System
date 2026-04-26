@@ -9,8 +9,15 @@ class DatabaseClient:
         key: str = os.getenv("SUPABASE_KEY", "")
         
         if url and key:
-            self.supabase: Client = create_client(url, key)
-            self.enabled = True
+            try:
+                self.supabase: Client = create_client(url, key)
+                # Validate connectivity/schema at startup; otherwise local mode is more reliable.
+                self.supabase.table("processing_jobs").select("id").limit(1).execute()
+                self.enabled = True
+            except Exception as e:
+                print(f"⚠️ Failed to initialize Supabase client: {e}")
+                print("⚠️ Falling back to local (no-database) mode.")
+                self.enabled = False
         else:
             print("⚠️ Supabase credentials not found. Database integration disabled.")
             self.enabled = False

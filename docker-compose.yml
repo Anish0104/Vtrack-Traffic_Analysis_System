@@ -12,6 +12,7 @@ services:
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--reload"]
 
   frontend:
     build:
@@ -19,5 +20,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     environment:
-      - VITE_API_URL=http://backend:7860/api
+      - VITE_API_URL=http://localhost:7860
+    depends_on:
+      - backend
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
