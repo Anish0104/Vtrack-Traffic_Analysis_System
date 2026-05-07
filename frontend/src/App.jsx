@@ -16,6 +16,7 @@ function AppRouter() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadData, setUploadData] = useState(null);
   const [results, setResults] = useState(null);
+  const [processingProgress, setProcessingProgress] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,13 +37,13 @@ function AppRouter() {
 
   const handleCalibrationComplete = async (pixelsPerMeter, countingLine, countDirection) => {
     setIsProcessing(true);
+    setProcessingProgress(0);
     const data = uploadData;
     setUploadData(null);
     try {
       const result = await startProcessingAndPoll(
-        data.job_id, data.file_path, data.metadata.total_frames, pixelsPerMeter, countingLine, countDirection, (prog) => {
-            // handle progress
-        }
+        data.job_id, data.file_path, data.metadata.total_frames, pixelsPerMeter, countingLine, countDirection,
+        (prog) => setProcessingProgress(prog)
       );
       setIsProcessing(false);
       setResults({ ...result.stats, videoUrl: result.videoUrl, isCalibrated: pixelsPerMeter !== 20.0 });
@@ -101,7 +102,7 @@ function AppRouter() {
         <div className="p-8 max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
-              <Route path="/dashboard" element={<DashboardContent isProcessing={isProcessing} isUploading={isUploading} uploadData={uploadData} handleUpload={handleUpload} handleCalibrationComplete={handleCalibrationComplete} videoFile={videoFile} />} />
+              <Route path="/dashboard" element={<DashboardContent isProcessing={isProcessing} isUploading={isUploading} uploadData={uploadData} handleUpload={handleUpload} handleCalibrationComplete={handleCalibrationComplete} videoFile={videoFile} processingProgress={processingProgress} />} />
               <Route path="/results" element={results ? <ResultsView results={results} /> : <Navigate to="/dashboard" />} />
             </Routes>
           </AnimatePresence>
@@ -111,7 +112,7 @@ function AppRouter() {
   );
 }
 
-function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload, handleCalibrationComplete, videoFile }) {
+function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload, handleCalibrationComplete, videoFile, processingProgress }) {
   const [stats, setStats] = useState({ total_processed: 0, total_vehicles: 0, system_load: 0 });
 
   useEffect(() => {
@@ -174,13 +175,13 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
           color="cyan" 
           delay={0.2} 
         />
-        <DashboardStatCard 
-          title="CPU Usage" 
-          value={`${stats.system_load}%`} 
-          icon={<Activity className="w-5 h-5 text-blue-400" />} 
-          color="blue" 
-          delay={0.3} 
-          progress={stats.system_load} 
+        <DashboardStatCard
+          title="CPU Usage"
+          value={`${stats.system_load ?? 0}%`}
+          icon={<Activity className="w-5 h-5 text-blue-400" />}
+          color="blue"
+          delay={0.3}
+          progress={stats.system_load ?? 0}
         />
       </div>
 
@@ -203,7 +204,7 @@ function DashboardContent({ isProcessing, isUploading, uploadData, handleUpload,
                 <VideoUpload onUpload={handleUpload} />
               </div>
             ) : (
-              <div className="py-12"><ProcessingStatus /></div>
+              <div className="py-12"><ProcessingStatus progress={isProcessing ? processingProgress : undefined} /></div>
             )}
           </div>
         </motion.div>

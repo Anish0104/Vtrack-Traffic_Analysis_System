@@ -1,30 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-export default function ProcessingStatus() {
-    const [progress, setProgress] = useState(0);
+export default function ProcessingStatus({ progress: externalProgress }) {
+    const [progress, setProgress] = useState(externalProgress ?? 0);
     const [status, setStatus] = useState('Initializing models...');
 
-    // Simulate progress updates since we haven't hooked up real Gradio server yet
     useEffect(() => {
+        // If a real progress value is provided, use it directly
+        if (externalProgress !== undefined) {
+            setProgress(externalProgress);
+            if (externalProgress < 20) setStatus("Loading YOLOv8 weights...");
+            else if (externalProgress < 40) setStatus("Analyzing frames (1/3)...");
+            else if (externalProgress < 60) setStatus("Running ByteTrack data association...");
+            else if (externalProgress < 80) setStatus("Generating heatmaps and speed estimations...");
+            else if (externalProgress < 100) setStatus("Finalizing output video...");
+            else setStatus("Processing Complete!");
+            return;
+        }
+
+        // Fallback: simulate progress during upload / pre-processing
         let p = 0;
         const interval = setInterval(() => {
             p += Math.random() * 10;
-            if (p > 100) p = 100;
+            if (p > 95) p = 95; // cap at 95 so it doesn't look done before the real response
             setProgress(p);
 
             if (p < 20) setStatus("Loading YOLOv8 weights...");
             else if (p < 40) setStatus("Analyzing frames (1/3)...");
             else if (p < 60) setStatus("Running ByteTrack data association...");
             else if (p < 80) setStatus("Generating heatmaps and speed estimations...");
-            else if (p < 100) setStatus("Finalizing output video...");
-            else {
-                setStatus("Processing Complete!");
-                clearInterval(interval);
-            }
+            else setStatus("Finalizing output video...");
         }, 500);
         return () => clearInterval(interval);
-    }, []);
+    }, [externalProgress]);
 
     return (
         <div className="w-full max-w-xl mx-auto py-16 text-center">
