@@ -4,6 +4,7 @@ import time
 import uuid
 import traceback
 import cv2
+import urllib.request
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import psutil
 
 try:
@@ -97,8 +99,59 @@ async def upload_video(file: UploadFile = File(...)):
         }
     }
 
+class RegisterUploadRequest(BaseModel):
+    file_url: str
+    storage_path: str
+    filename: str
+    fps: float = 30.0
+    duration: float = 0.0
+    total_frames: int = 900
+    resolution: str = "unknown"
+
+@app.post("/api/register-upload")
+async def register_upload(req: RegisterUploadRequest):
+    """Accept a Supabase Storage URL instead of a file body (bypasses Vercel payload limits)."""
+    if db.enabled:
+        video_id = db.insert_video(req.filename, req.duration, int(req.fps), 0.0, req.resolution)
+        job_id = db.create_job(video_id, req.total_frames) if video_id else None
+    else:
+        video_id = None
+        job_id = None
+
+    if not video_id or not job_id:
+        video_id = str(uuid.uuid4())
+        job_id = str(uuid.uuid4())
+        local_jobs[job_id] = {
+            "id": job_id,
+            "video_id": video_id,
+            "status": "uploaded",
+            "progress": 0,
+            "current_frame": 0,
+            "total_frames": req.total_frames,
+            "created_at": time.time(),
+            "file_path": req.file_url,
+        }
+
+    return {
+        "video_id": video_id,
+        "job_id": job_id,
+        "file_path": req.file_url,
+        "metadata": {
+            "fps": req.fps,
+            "duration": req.duration,
+            "resolution": req.resolution,
+            "total_frames": req.total_frames,
+        },
+    }
+
 def process_video_background(job_id: str, file_path: str, total_frames: int, pixels_per_meter: float = 20.0, counting_line: list | None = None, count_direction: str = "both"):
     try:
+        # If the file_path is a URL (Supabase Storage), download it first.
+        if file_path.startswith("http://") or file_path.startswith("https://"):
+            local_path = os.path.join(BASE_DIR, "videos", f"{job_id}_{os.path.basename(file_path).split('?')[0]}")
+            urllib.request.urlretrieve(file_path, local_path)
+            file_path = local_path
+
         output_path = os.path.join(BASE_DIR, "outputs", f"processed_{os.path.basename(file_path)}")
         start_time = time.time()
         
