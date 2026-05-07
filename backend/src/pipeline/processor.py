@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 from src.detection.detector import VehicleDetector
 from src.tracking.tracker import VehicleTracker
@@ -9,8 +10,12 @@ from src.analytics.heatmap import HeatmapGenerator
 from src.analytics.speed import SpeedEstimator
 from src.pipeline.video_handler import VideoHandler
 import src.utils.visualization as viz
-import time
-import wandb
+
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
 
 class VideoProcessor:
     def __init__(self, model_path="yolov8n.pt", device=None):
@@ -94,18 +99,18 @@ class VideoProcessor:
             "model": "yolov8s"
         }
         
-        # Log to wandb if enabled
-        try:
-            wandb.log({
-                "video_fps": fps,
-                "total_vehicles": stats["total"],
-                "avg_speed": stats["avg_speed"],
-                "processing_time": processing_time,
-                "cars": stats["counts"].get("car", 0),
-                "trucks": stats["counts"].get("truck", 0)
-            })
-            wandb.finish()
-        except:
-            pass
+        if WANDB_AVAILABLE:
+            try:
+                wandb.log({
+                    "video_fps": fps,
+                    "total_vehicles": stats["total"],
+                    "avg_speed": stats["avg_speed"],
+                    "processing_time": processing_time,
+                    "cars": stats["counts"].get("car", 0),
+                    "trucks": stats["counts"].get("truck", 0)
+                })
+                wandb.finish()
+            except Exception:
+                pass
         
         return output_path, stats, traj_tracker.get_all_trajectories()
