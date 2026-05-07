@@ -12,8 +12,13 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import gradio as gr
 import psutil
+
+try:
+    import gradio as gr
+    GRADIO_AVAILABLE = True
+except ImportError:
+    GRADIO_AVAILABLE = False
 
 from src.pipeline.processor import VideoProcessor
 from src.utils.database import DatabaseClient
@@ -289,87 +294,82 @@ async def get_recent_activity():
         return []
 
 
-# --- GRADIO UI ---
+# --- GRADIO UI (optional) ---
 
-def process_video(video_path, progress=gr.Progress()):
-    if not video_path:
-        return None, "Error: No video uploaded"
-        
-    try:
-        # Define output paths
-        output_dir = os.path.join(BASE_DIR, "outputs")
-        os.makedirs(output_dir, exist_ok=True)
-        filename = os.path.basename(video_path)
-        output_path = os.path.join(output_dir, "processed_" + filename)
-        
-        # Get video metadata
-        cap = cv2.VideoCapture(video_path)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = total_frames / fps if fps else 0
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-        
-        resolution = f"{width}x{height}"
-        file_size_mb = os.path.getsize(video_path) / (1024 * 1024)
-        
-        # Insert initial records
-        video_id = db.insert_video(filename, duration, fps, file_size_mb, resolution)
-        job_id = db.create_job(video_id, total_frames)
-        
-        start_time = time.time()
-        
-        def progress_callback(prog, msg):
-            progress(prog, desc=msg)
-            current_frame = int(prog * total_frames)
-            elapsed = time.time() - start_time
-            processing_fps = current_frame / elapsed if elapsed > 0 else 0
-            
-            db.update_job_progress(job_id, current_frame, int(prog * 100), processing_fps)
-            
-        progress(0, desc="Initializing YOLOv8 model...")
-        processor = VideoProcessor("yolov8n.pt")
-        
-        progress(0.1, desc="Starting video processing pipeline...")
-        out_path, stats, trajectories = processor.process(video_path, output_path, progress_callback)
-        
-        progress(1.0, desc="Processing complete!")
-        processing_time = time.time() - start_time
-        
-        db.complete_job_and_insert_results(job_id, stats, processing_time)
-        
-        stats_str = json.dumps(stats, indent=2)
-        
-        return out_path, stats_str
-        
-    except Exception as e:
-        return None, f"Error processing video: {str(e)}\n{traceback.format_exc()}"
+if GRADIO_AVAILABLE:
+    def process_video(video_path, progress=gr.Progress()):
+        if not video_path:
+            return None, "Error: No video uploaded"
 
-def create_ui():
-    with gr.Blocks(title="Vtrack - Real-time Video Analytics", theme=gr.themes.Soft()) as gradio_app:
-        gr.Markdown("# Vtrack Data Analytics Dashboard")
-        gr.Markdown("Upload a traffic video to detect vehicles, track trajectories, and generate analytics.")
-        
-        with gr.Row():
-            with gr.Column(scale=1):
-                video_input = gr.Video(label="Upload Traffic Video", sources=["upload"])
-                process_btn = gr.Button("Process Video", variant="primary")
-                stats_output = gr.Code(label="Analytics JSON Summary", language="json")
-            
-            with gr.Column(scale=2):
-                video_output = gr.Video(label="Processed Video (Annotated)", interactive=False)
-                
-        process_btn.click(
-            fn=process_video,
-            inputs=video_input,
-            outputs=[video_output, stats_output],
-            api_name="process"
-        )
-        
-    return gradio_app
+        try:
+            output_dir = os.path.join(BASE_DIR, "outputs")
+            os.makedirs(output_dir, exist_ok=True)
+            filename = os.path.basename(video_path)
+            output_path = os.path.join(output_dir, "processed_" + filename)
 
-gradio_app = create_ui()
-app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
+            cap = cv2.VideoCapture(video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            duration = total_frames / fps if fps else 0
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+
+            resolution = f"{width}x{height}"
+            file_size_mb = os.path.getsize(video_path) / (1024 * 1024)
+
+            video_id = db.insert_video(filename, duration, fps, file_size_mb, resolution)
+            job_id = db.create_job(video_id, total_frames)
+
+            start_time = time.time()
+
+            def progress_callback(prog, msg):
+                progress(prog, desc=msg)
+                current_frame = int(prog * total_frames)
+                elapsed = time.time() - start_time
+                processing_fps = current_frame / elapsed if elapsed > 0 else 0
+                db.update_job_progress(job_id, current_frame, int(prog * 100), processing_fps)
+
+            progress(0, desc="Initializing YOLOv8 model...")
+            processor = VideoProcessor("yolov8n.pt")
+
+            progress(0.1, desc="Starting video processing pipeline...")
+            out_path, stats, trajectories = processor.process(video_path, output_path, progress_callback)
+
+            progress(1.0, desc="Processing complete!")
+            processing_time = time.time() - start_time
+
+            db.complete_job_and_insert_results(job_id, stats, processing_time)
+
+            return out_path, json.dumps(stats, indent=2)
+
+        except Exception as e:
+            return None, f"Error processing video: {str(e)}\n{traceback.format_exc()}"
+
+    def create_ui():
+        with gr.Blocks(title="Vtrack - Real-time Video Analytics", theme=gr.themes.Soft()) as gradio_app:
+            gr.Markdown("# Vtrack Data Analytics Dashboard")
+            gr.Markdown("Upload a traffic video to detect vehicles, track trajectories, and generate analytics.")
+
+            with gr.Row():
+                with gr.Column(scale=1):
+                    video_input = gr.Video(label="Upload Traffic Video", sources=["upload"])
+                    process_btn = gr.Button("Process Video", variant="primary")
+                    stats_output = gr.Code(label="Analytics JSON Summary", language="json")
+
+                with gr.Column(scale=2):
+                    video_output = gr.Video(label="Processed Video (Annotated)", interactive=False)
+
+            process_btn.click(
+                fn=process_video,
+                inputs=video_input,
+                outputs=[video_output, stats_output],
+                api_name="process"
+            )
+
+        return gradio_app
+
+    gradio_app = create_ui()
+    app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
 
 # To run: uvicorn app:app --host 0.0.0.0 --port 7860
